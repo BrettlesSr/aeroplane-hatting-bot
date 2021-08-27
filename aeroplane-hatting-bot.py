@@ -8,7 +8,6 @@ import random
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
-print(TOKEN)
 intents = discord.Intents().all()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
