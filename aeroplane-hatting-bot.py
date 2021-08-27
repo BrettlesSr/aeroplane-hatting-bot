@@ -6,8 +6,6 @@ from dotenv import load_dotenv
 
 import random
 
-import time
-
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 GUILD = os.getenv('DISCORD_GUILD')
