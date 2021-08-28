@@ -30,6 +30,7 @@ async def team(ctx):
     random.shuffle(players)
     redTeam = []
     blueTeam = []
+    
     for i in range(0, len(players)):
         player = players[i]
         if (i < len(players) / 2):
