@@ -1,6 +1,8 @@
 import os
+from typing import List
 
 import discord
+from discord import member
 from discord.ext import commands
 from dotenv import load_dotenv
 
@@ -30,7 +32,7 @@ async def team(ctx):
     random.shuffle(players)
     redTeam = []
     blueTeam = []
-    
+
     for i in range(0, len(players)):
         player = players[i]
         if (i < len(players) / 2):
@@ -46,9 +48,44 @@ async def team(ctx):
     await ctx.send('glhf')
 
 @bot.command()
-async def order66(ctx, *, member: discord.Member):
+async def order66(ctx, *, member: member):
+    if ctx.author == bot.user or member == bot.user:
+        return
     await ctx.send("{} I'm sorry sir, it's time for you to leave.".format(member.mention))
     await ctx.send("https://i.ytimg.com/vi/WQsAo_6UKRs/maxresdefault.jpg")
     await member.move_to(None)
+
+schedules = []
+
+class ScheduleTask:
+    def __init__(self, name, members: List[str]):
+        self.name = name
+        self.dates = []
+        self.daysHorizon = 21
+        self.members = members
+        self.messages = []
+        for day in range(0, self.daysHorizon):
+            self.dates.append(day)
+
+@bot.command()
+async def schedule(ctx, name, command):
+    if ctx.author == bot.user:
+        return
+    if command == "missing":
+        schedule = getCurrentSchedule(name, schedules)
+        #checks who is missing
+    elif command == "extend":
+        schedule = getCurrentSchedule(name, schedules)
+        #adds another week of dates to the schedule
+    elif command == "close":
+        schedule = getCurrentSchedule(name, schedules)
+        #deletes all of the existing messages
+    else:
+        #starts new schedule
+        members = []
+        schedules.append(ScheduleTask(name, members))
+
+def getCurrentSchedule(name, schedules) -> ScheduleTask:
+    return next(x for x in schedules if x.name == name)
 
 bot.run(TOKEN)
