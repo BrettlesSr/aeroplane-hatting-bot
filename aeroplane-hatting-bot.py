@@ -99,9 +99,14 @@ class ScheduleDate:
         return list(set(self.expectedRespondants) - set(self.respondants))
 
 @bot.command()
-async def schedule(ctx, name: str, command, group: Role = None):
+async def schedule(ctx, name: str, command = "", group: Role = None):
     if ctx.author == bot.user:
         return
+    
+    if name == "help":
+        await ctx.send("Commands take the form \"$schedule [name of Schedule] [command] [@role mention]\"")
+        await ctx.send("Possible [command]s:\r\n\"new\" : Makes a new Schedule linked to the people in the @role mention.\r\n\"extend\" : Adds another week to the named Schedule.\r\n\"missing\" : Pings the missing people in the named Schedule.")
+    
     if command == "missing":
         #checks who is missing
         schedule = getCurrentSchedule(name, schedules)
