@@ -1,5 +1,6 @@
 import os
 from typing import List
+from attr import s
 
 import discord
 from discord import Member
@@ -67,7 +68,7 @@ class ScheduleTask:
     def __init__(self, name, members: List[str], group, creator):
         self.name = name
         self.dates = []
-        self.daysHorizon = 12
+        self.daysHorizon = 14
         self.members = members
         self.group = group
         self.creator = creator
@@ -79,7 +80,7 @@ class ScheduleTask:
     
     def getMissingRespondants(self):
         missing = set()
-        for date in schedule.dates:
+        for date in self.dates:
             missingRespondants = date.getMissingRespondants()
             for missingRespondant in missingRespondants:
                 missing.add(missingRespondant)
@@ -104,6 +105,8 @@ async def schedule(ctx, name: str, command, group: Role = None):
     if command == "missing":
         #checks who is missing
         schedule = getCurrentSchedule(name, schedules)
+        if schedule == None:
+            return
         missing = schedule.getMissingRespondants()
         if len(missing) == 0:
             msg = "Event {}: Everyone has responded."
@@ -116,6 +119,8 @@ async def schedule(ctx, name: str, command, group: Role = None):
     elif command == "extend":
         #adds another week of dates to the schedule
         schedule = getCurrentSchedule(name, schedules)
+        if schedule == None:
+            return
         newDates = []
         for newDate in range(schedule.daysHorizon, schedule.daysHorizon + 7):
             date = schedule.now + datetime.timedelta(days=newDate + 1)
@@ -137,10 +142,15 @@ async def schedule(ctx, name: str, command, group: Role = None):
         await ctx.send("Event {}: Starting up new event. Dates in the next three weeks are listed below. React with :white_check_mark: if you can make a date and :negative_squared_cross_mark: if you are unavailable. You can alter your choices later."
         .format(name))
         schedule = getCurrentSchedule(name, schedules)
+        if schedule == None:
+            return
         await printNewDates(name, schedule.dates, ctx, schedule)
 
 def getCurrentSchedule(name, schedules) -> ScheduleTask:
-    return next(x for x in schedules if x.name == name)
+    for schedule in schedules:
+        if schedule.name == name:
+            return schedule
+    return None
 
 async def printNewDates(name, newDates, ctx, schedule):
     await ctx.send("Event {}: Adding new dates. Please respond {}".format(name, schedule.group))
@@ -152,7 +162,7 @@ async def printNewDates(name, newDates, ctx, schedule):
 
 @bot.event
 async def on_raw_reaction_add(data):
-    if data.member.bot:
+    if data == None or data.member == None or data.member.bot:
         return
     channel = await bot.fetch_channel(data.channel_id)
     message = await channel.fetch_message(data.message_id)
@@ -160,16 +170,20 @@ async def on_raw_reaction_add(data):
         return
     name = next(iter(message.content.split(":"))).replace("Event ", "")
     schedule = getCurrentSchedule(name, schedules)
-    date = next(x for x in schedule.dates if x.msg == message.content) 
-    if data.emoji == '✅' or data.emoji == '❎':
-        date.respondants.append(data.member.mention)
-        if data.emoji == '✅':
-            data.approvingRespondants.append(data.member.mention)
+    if schedule == None:
+        return
+    date = next(x for x in schedule.dates if x.msg == message.content)
+    if data.member.mention in date.expectedRespondants:
+        if str(data.emoji) == '✅' or str(data.emoji) == '❎':
+            date.respondants.append(data.member.mention)
+            if str(data.emoji) == '✅':
+                date.approvingRespondants.append(data.member.mention)
     await checkIfCompleted(schedule, channel)
 
 @bot.event
 async def on_raw_reaction_remove(data):
-    if data.member.bot:
+    user = await bot.fetch_user(data.user_id)
+    if data == None or user == None or user.bot:
         return
     channel = await bot.fetch_channel(data.channel_id)
     message = await channel.fetch_message(data.message_id)
@@ -177,14 +191,18 @@ async def on_raw_reaction_remove(data):
         return
     name = next(iter(message.content.split(":"))).replace("Event ", "")
     schedule = getCurrentSchedule(name, schedules)
-    date = next(x for x in schedule.dates if x.msg == message.content) 
-    if data.emoji == '✅' or data.emoji == '❎':
-        date.respondants.remove(data.member.mention)
-        if data.emoji == '✅':
-            data.approvingRespondants.remove(data.member.mention)
+    if schedule == None:
+        return
+    date = next(x for x in schedule.dates if x.msg == message.content)
+    
+    if user.mention in date.expectedRespondants:
+        if str(data.emoji) == '✅' or str(data.emoji) == '❎':
+            date.respondants.remove(user.mention)
+            if str(data.emoji) == '✅':
+                date.approvingRespondants.remove(user.mention)
     await checkIfCompleted(schedule, channel)
     
-async def checkIfCompleted(schedule, channel):
+async def checkIfCompleted(schedule: ScheduleTask, channel):
     missing = schedule.getMissingRespondants()
     if len(missing) == 0:
         for date in schedule.dates:
@@ -193,7 +211,7 @@ async def checkIfCompleted(schedule, channel):
         if selectedDate == None:
             await channel.send("Everyone in {} has now voted on every date, but no concensus was reached. You should run the command \"$schedule {} extend X\" where X is the nubmer of new days you wish to add.".format(schedule.group, schedule.name))
         else:
-            await channel.send("The date {} has been selected, {}.".format(date.strftime("%A %d %B %Y"), schedule.group))
+            await channel.send("The date {} has been selected, {}.".format(selectedDate.date.strftime("%A %d %B %Y"), schedule.group))
             schedules.remove(schedule)
 
 
