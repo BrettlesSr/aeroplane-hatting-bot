@@ -6,6 +6,7 @@ from discord import Member
 from discord import Role
 from discord import emoji
 from discord import message
+from discord.enums import ChannelType
 from discord.ext import commands
 from dotenv import load_dotenv
 
@@ -66,7 +67,7 @@ class ScheduleTask:
     def __init__(self, name, members: List[str], group, creator):
         self.name = name
         self.dates = []
-        self.daysHorizon = 2#1
+        self.daysHorizon = 12
         self.members = members
         self.group = group
         self.creator = creator
@@ -75,12 +76,22 @@ class ScheduleTask:
             date = self.now + datetime.timedelta(days=day + 1) 
             msg = "Event {}: {}".format(name, date.strftime("%A %d %B %Y"))
             self.dates.append(ScheduleDate(date, members, msg))
+    
+    def getMissingRespondants(self):
+        missing = set()
+        for date in schedule.dates:
+            missingRespondants = date.getMissingRespondants()
+            for missingRespondant in missingRespondants:
+                missing.add(missingRespondant)
+        return missing
+        
 
 class ScheduleDate:
     def __init__(self, date: datetime, expectedRespondants: List[str], msg: str):
         self.date = date
         self.expectedRespondants = expectedRespondants
         self.respondants = []
+        self.approvingRespondants = []
         self.msg = msg
     
     def getMissingRespondants(self):
@@ -93,11 +104,7 @@ async def schedule(ctx, name: str, command, group: Role = None):
     if command == "missing":
         #checks who is missing
         schedule = getCurrentSchedule(name, schedules)
-        missing = set()
-        for date in schedule.dates:
-            missingRespondants = date.getMissingRespondants()
-            for missingRespondant in missingRespondants:
-                missing.add(missingRespondant)
+        missing = schedule.getMissingRespondants()
         if len(missing) == 0:
             msg = "Event {}: Everyone has responded."
         else:
@@ -153,10 +160,41 @@ async def on_raw_reaction_add(data):
         return
     name = next(iter(message.content.split(":"))).replace("Event ", "")
     schedule = getCurrentSchedule(name, schedules)
-    if data.emoji == "tick":
-        
+    date = next(x for x in schedule.dates if x.msg == message.content) 
+    if data.emoji == '✅' or data.emoji == '❎':
+        date.respondants.append(data.member.mention)
+        if data.emoji == '✅':
+            data.approvingRespondants.append(data.member.mention)
+    await checkIfCompleted(schedule, channel)
+
+@bot.event
+async def on_raw_reaction_remove(data):
+    if data.member.bot:
+        return
+    channel = await bot.fetch_channel(data.channel_id)
+    message = await channel.fetch_message(data.message_id)
+    if message.author != bot.user:
+        return
+    name = next(iter(message.content.split(":"))).replace("Event ", "")
+    schedule = getCurrentSchedule(name, schedules)
+    date = next(x for x in schedule.dates if x.msg == message.content) 
+    if data.emoji == '✅' or data.emoji == '❎':
+        date.respondants.remove(data.member.mention)
+        if data.emoji == '✅':
+            data.approvingRespondants.remove(data.member.mention)
+    await checkIfCompleted(schedule, channel)
     
-    
-    
+async def checkIfCompleted(schedule, channel):
+    missing = schedule.getMissingRespondants()
+    if len(missing) == 0:
+        for date in schedule.dates:
+            if set(date.expectedRespondants) == set(date.approvingRespondants):
+                selectedDate = date
+        if selectedDate == None:
+            await channel.send("Everyone in {} has now voted on every date, but no concensus was reached. You should run the command \"$schedule {} extend X\" where X is the nubmer of new days you wish to add.".format(schedule.group, schedule.name))
+        else:
+            await channel.send("The date {} has been selected, {}.".format(date.strftime("%A %d %B %Y"), schedule.group))
+            schedules.remove(schedule)
+
 
 bot.run(TOKEN)
