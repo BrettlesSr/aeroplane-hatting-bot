@@ -1,4 +1,5 @@
 import os
+import time
 from typing import List
 from attr import s
 
@@ -212,7 +213,9 @@ async def on_raw_reaction_remove(data):
 async def on_voice_state_update(member: Member, before: VoiceState, after: VoiceState):
     if after.channel is not None:
         consoleChannel = bot.get_channel(813894919806124073)
-        await consoleChannel.send("{}".format(member.nick))
+        await consoleChannel.send("!play {}".format(themes(member.id)))
+        time.sleep(5)
+        await consoleChannel.send("!stop")
     
 async def checkIfCompleted(schedule: ScheduleTask, channel):
     missing = schedule.getMissingRespondants()
@@ -226,5 +229,26 @@ async def checkIfCompleted(schedule: ScheduleTask, channel):
             await channel.send("The date {} has been selected, {}.".format(selectedDate.date.strftime("%A %d %B %Y"), schedule.group))
             schedules.remove(schedule)
 
+def themes(userId: int):
+    if userId == 349290983726383105: #james
+        return 'https://www.youtube.com/watch?v=-bzWSJG93P8&ab_channel=L'
+    elif userId == 326133421892042755: #fresh
+        return 'https://www.youtube.com/watch?v=o0WWUdHVTvY&ab_channel=Scorpo&t=27s'
+    elif userId == 306885255023951873: #will
+        return 'https://www.youtube.com/watch?v=y5Hkpvs6W04&t=28s'
+    elif userId == 413628969821405194: #ism
+        return 'https://www.youtube.com/watch?v=16y1AkoZkmQ&ab_channel=BoneyMVEVO'
+    elif userId == 277544050717097984: #jul
+        return 'https://www.youtube.com/watch?v=PIQSEq6tEVs&ab_channel=BlueMarbleNations&t=14s'
+    elif userId == 397473449922134023: #harry
+        return 'https://www.youtube.com/watch?v=I8KSAtos-dk&ab_channel=BlueMarbleNations&t=24s'
+    elif userId == 334096525959364609: #tom
+        return 'https://www.youtube.com/watch?v=tHkj-b8Qk3M&t=61s&ab_channel=%D1%81%D1%82%D0%B5%D0%BF%D0%B0%D0%BD%D0%90%D0%B1%D0%B4%D1%83%D0%BB%D0%BE%D0%B2'
+    elif userId == 696693115846656072: #al
+        return 'https://www.youtube.com/watch?v=lzmWzXLPa6I&ab_channel=ICTON&t=10s'
+    elif userId == 278596240185360387: #bennet
+        return 'https://www.youtube.com/watch?v=ulsLI029rH0&t=90s'
+    elif userId == 268380148456226816: #jacob
+        return ''
 
 bot.run(TOKEN)
