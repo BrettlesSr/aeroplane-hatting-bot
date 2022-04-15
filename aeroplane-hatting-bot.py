@@ -209,13 +209,13 @@ async def on_raw_reaction_remove(data):
                 date.approvingRespondants.remove(user.mention)
     await checkIfCompleted(schedule, channel)
 
-@bot.event
-async def on_voice_state_update(member: Member, before: VoiceState, after: VoiceState):
-    if after.channel is not None:
-        consoleChannel = bot.get_channel(813894919806124073)
-        await consoleChannel.send("!play {}".format(themes(member.id)))
-        time.sleep(5)
-        await consoleChannel.send("!stop")
+# @bot.event
+# async def on_voice_state_update(member: Member, before: VoiceState, after: VoiceState):
+#     if after.channel is not None:
+#         consoleChannel = bot.get_channel(813894919806124073)
+#         await consoleChannel.send("!play {}".format(themes(member.id)))
+#         time.sleep(5)
+#         await consoleChannel.send("!stop")
     
 async def checkIfCompleted(schedule: ScheduleTask, channel):
     missing = schedule.getMissingRespondants()
