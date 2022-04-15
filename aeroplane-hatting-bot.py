@@ -7,6 +7,7 @@ from discord import Member
 from discord import Role
 from discord import emoji
 from discord import message
+from discord import VoiceState
 from discord.enums import ChannelType
 from discord.ext import commands
 from dotenv import load_dotenv
@@ -206,6 +207,12 @@ async def on_raw_reaction_remove(data):
             if str(data.emoji) == '✅':
                 date.approvingRespondants.remove(user.mention)
     await checkIfCompleted(schedule, channel)
+
+@bot.event
+async def on_voice_state_update(member: Member, before: VoiceState, after: VoiceState):
+    if after.channel is not None:
+        consoleChannel = bot.get_channel(813894919806124073)
+        await consoleChannel.send("{}".format(member.nick))
     
 async def checkIfCompleted(schedule: ScheduleTask, channel):
     missing = schedule.getMissingRespondants()
