@@ -216,6 +216,7 @@ async def on_raw_reaction_remove(data):
 #         await consoleChannel.send("!play {}".format(themes(member.id)))
 #         time.sleep(5)
 #         await consoleChannel.send("!stop")
+
     
 async def checkIfCompleted(schedule: ScheduleTask, channel):
     missing = schedule.getMissingRespondants()
