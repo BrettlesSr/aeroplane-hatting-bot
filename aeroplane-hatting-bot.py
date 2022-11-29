@@ -5,6 +5,7 @@ from attr import s
 
 import discord
 from discord import Member
+from discord import Message
 from discord import Role
 from discord import emoji
 from discord import message
@@ -64,41 +65,65 @@ async def order66(ctx, *, member: Member):
     await ctx.send("https://i.ytimg.com/vi/WQsAo_6UKRs/maxresdefault.jpg")
     await member.move_to(None)
 
-schedules = []
+dateFormat ="%A %d %B %Y"
 
 class ScheduleTask:
-    def __init__(self, name, members: List[str], group, creator):
+    def __init__(self, name, group):
         self.name = name
         self.dates = []
         self.daysHorizon = 14
-        self.members = members
+        self.members = [x.mention for x in group.members]
         self.group = group
-        self.creator = creator
         self.now = datetime.datetime.now()
         for day in range(0, self.daysHorizon):
             date = self.now + datetime.timedelta(days=day + 1) 
-            msg = "Event {}: {}".format(name, date.strftime("%A %d %B %Y"))
-            self.dates.append(ScheduleDate(date, members, msg))
+            msg = "Event {}: {}".format(name, date.strftime(dateFormat))
+            self.dates.append(ScheduleDate(date, self.members, msg))
+
+    def __init__(self, name, msgs) -> None:
+        self.name = name
+        self.dates = []
+        self.daysHorizon = 14
+        self.now = datetime.datetime.now()
+        for msg in msgs:
+            if len(msg.role_mentions) > 0:
+                self.group = msg.role_mentions[0]
+                self.members = [x.mention for x in self.group.members]
+            if isDate(msg.content):
+                date = ScheduleDate(self.members, msg)
+                self.dates.append(date)
     
-    def getMissingRespondants(self):
+    def getMissingRespondents(self):
         missing = set()
         for date in self.dates:
-            missingRespondants = date.getMissingRespondants()
-            for missingRespondant in missingRespondants:
-                missing.add(missingRespondant)
+            missingRespondents = date.getMissingRespondents()
+            for missingRespondent in missingRespondents:
+                missing.add(missingRespondent)
         return missing
         
 
 class ScheduleDate:
-    def __init__(self, date: datetime, expectedRespondants: List[str], msg: str):
+    def __init__(self, date: datetime, expectedRespondents: List[str], msg: str):
         self.date = date
-        self.expectedRespondants = expectedRespondants
-        self.respondants = []
-        self.approvingRespondants = []
+        self.expectedRespondents = set(expectedRespondents)
+        self.respondents = set([])
+        self.approvingRespondents = set([])
         self.msg = msg
+
+    def __init__(self, expectedRespondents: List[str], msg: Message, name):
+        self.date = datetime.datetime.strptime(msg.content.replace('Event ' + name + ': ', ''), dateFormat)
+        self.expectedRespondents = set(expectedRespondents)
+        self.approvingRespondents = set([])
+        self.respondents = set([])
+        self.msg = msg.content
+        for reaction in msg.reactions:
+            for user in reaction.users():
+                self.respondents.append(user.mention)
+                if reaction.emoji == '✅':
+                    self.approvingRespondents.append(user.mention)        
     
-    def getMissingRespondants(self):
-        return list(set(self.expectedRespondants) - set(self.respondants))
+    def getMissingRespondents(self):
+        return list(set(self.expectedRespondents) - set(self.respondents))
 
 @bot.command()
 async def schedule(ctx, name: str, command = "", group: Role = None):
@@ -111,10 +136,10 @@ async def schedule(ctx, name: str, command = "", group: Role = None):
     
     if command == "missing":
         #checks who is missing
-        schedule = getCurrentSchedule(name, schedules)
+        schedule = getCurrentSchedule(name, ctx.channel)
         if schedule == None:
             return
-        missing = schedule.getMissingRespondants()
+        missing = schedule.getMissingRespondents()
         if len(missing) == 0:
             msg = "Event {}: Everyone has responded."
         else:
@@ -125,13 +150,13 @@ async def schedule(ctx, name: str, command = "", group: Role = None):
         
     elif command == "extend":
         #adds another week of dates to the schedule
-        schedule = getCurrentSchedule(name, schedules)
+        schedule = getCurrentSchedule(name, ctx.channel)
         if schedule == None:
             return
         newDates = []
         for newDate in range(schedule.daysHorizon, schedule.daysHorizon + 7):
             date = schedule.now + datetime.timedelta(days=newDate + 1)
-            msg = "Event {}: {}".format(name, date.strftime("%A %d %B %Y"))
+            msg = "Event {}: {}".format(name, date.strftime(dateFormat))
             newScheduleDate = ScheduleDate(date, schedule.members, msg)
             newDates.append(newScheduleDate)
             schedule.dates.append(newScheduleDate)
@@ -144,20 +169,20 @@ async def schedule(ctx, name: str, command = "", group: Role = None):
             return
         if ':' in name:
             return # no colons in names
-        members = [x.mention for x in group.members]
-        schedules.append(ScheduleTask(name, members, group.mention, ctx.author.mention))
+        
         await ctx.send("Event {}: Starting up new event. Dates in the next three weeks are listed below. React with :white_check_mark: if you can make a date and :negative_squared_cross_mark: if you are unavailable. You can alter your choices later."
         .format(name))
-        schedule = getCurrentSchedule(name, schedules)
+        schedule = getCurrentSchedule(name, ctx.channel)
         if schedule == None:
             return
         await printNewDates(name, schedule.dates, ctx, schedule)
 
-def getCurrentSchedule(name, schedules) -> ScheduleTask:
-    for schedule in schedules:
-        if schedule.name == name:
-            return schedule
-    return None
+async def getCurrentSchedule(name, channel) -> ScheduleTask:
+    messages = []
+    async for message in channel.history(limit=2000):
+        if message.author == bot.user and message.content.startswith('Event ' + name):
+            messages.append(message)
+    return ScheduleTask(messages)    
 
 async def printNewDates(name, newDates, ctx, schedule):
     await ctx.send("Event {}: Adding new dates. Please respond {}".format(name, schedule.group))
@@ -176,15 +201,15 @@ async def on_raw_reaction_add(data):
     if message.author != bot.user:
         return
     name = next(iter(message.content.split(":"))).replace("Event ", "")
-    schedule = getCurrentSchedule(name, schedules)
+    schedule = getCurrentSchedule(name, channel)
     if schedule == None:
         return
     date = next(x for x in schedule.dates if x.msg == message.content)
-    if data.member.mention in date.expectedRespondants:
+    if data.member.mention in date.expectedRespondents:
         if str(data.emoji) == '✅' or str(data.emoji) == '❎':
-            date.respondants.append(data.member.mention)
+            date.respondents.append(data.member.mention)
             if str(data.emoji) == '✅':
-                date.approvingRespondants.append(data.member.mention)
+                date.approvingRespondents.append(data.member.mention)
     await checkIfCompleted(schedule, channel)
 
 @bot.event
@@ -197,59 +222,30 @@ async def on_raw_reaction_remove(data):
     if message.author != bot.user:
         return
     name = next(iter(message.content.split(":"))).replace("Event ", "")
-    schedule = getCurrentSchedule(name, schedules)
+    schedule = getCurrentSchedule(name, channel)
     if schedule == None:
         return
     date = next(x for x in schedule.dates if x.msg == message.content)
     
-    if user.mention in date.expectedRespondants:
+    if user.mention in date.expectedRespondents:
         if str(data.emoji) == '✅' or str(data.emoji) == '❎':
-            date.respondants.remove(user.mention)
+            date.respondents.remove(user.mention)
             if str(data.emoji) == '✅':
-                date.approvingRespondants.remove(user.mention)
+                date.approvingRespondents.remove(user.mention)
     await checkIfCompleted(schedule, channel)
-
-# @bot.event
-# async def on_voice_state_update(member: Member, before: VoiceState, after: VoiceState):
-#     if after.channel is not None:
-#         consoleChannel = bot.get_channel(813894919806124073)
-#         await consoleChannel.send("!play {}".format(themes(member.id)))
-#         time.sleep(5)
-#         await consoleChannel.send("!stop")
-
     
 async def checkIfCompleted(schedule: ScheduleTask, channel):
-    missing = schedule.getMissingRespondants()
+    missing = schedule.getMissingRespondents()
     if len(missing) == 0:
         for date in schedule.dates:
-            if set(date.expectedRespondants) == set(date.approvingRespondants):
+            if set(date.expectedRespondents) == set(date.approvingRespondents):
                 selectedDate = date
         if selectedDate == None:
-            await channel.send("Everyone in {} has now voted on every date, but no concensus was reached. You should run the command \"$schedule {} extend X\" where X is the nubmer of new days you wish to add.".format(schedule.group, schedule.name))
+            await channel.send("Everyone in {} has now voted on every date, but no consensus was reached. You should run the command \"$schedule {} extend X\" where X is the nubmer of new days you wish to add.".format(schedule.group, schedule.name))
         else:
-            await channel.send("The date {} has been selected, {}.".format(selectedDate.date.strftime("%A %d %B %Y"), schedule.group))
-            schedules.remove(schedule)
+            await channel.send("The date {} has been selected, {}.".format(selectedDate.date.strftime(dateFormat), schedule.group))
 
-def themes(userId: int):
-    if userId == 349290983726383105: #james
-        return 'https://www.youtube.com/watch?v=-bzWSJG93P8&ab_channel=L'
-    elif userId == 326133421892042755: #fresh
-        return 'https://www.youtube.com/watch?v=o0WWUdHVTvY&ab_channel=Scorpo&t=27s'
-    elif userId == 306885255023951873: #will
-        return 'https://www.youtube.com/watch?v=y5Hkpvs6W04&t=28s'
-    elif userId == 413628969821405194: #ism
-        return 'https://www.youtube.com/watch?v=16y1AkoZkmQ&ab_channel=BoneyMVEVO'
-    elif userId == 277544050717097984: #jul
-        return 'https://www.youtube.com/watch?v=PIQSEq6tEVs&ab_channel=BlueMarbleNations&t=14s'
-    elif userId == 397473449922134023: #harry
-        return 'https://www.youtube.com/watch?v=I8KSAtos-dk&ab_channel=BlueMarbleNations&t=24s'
-    elif userId == 334096525959364609: #tom
-        return 'https://www.youtube.com/watch?v=tHkj-b8Qk3M&t=61s&ab_channel=%D1%81%D1%82%D0%B5%D0%BF%D0%B0%D0%BD%D0%90%D0%B1%D0%B4%D1%83%D0%BB%D0%BE%D0%B2'
-    elif userId == 696693115846656072: #al
-        return 'https://www.youtube.com/watch?v=lzmWzXLPa6I&ab_channel=ICTON&t=10s'
-    elif userId == 278596240185360387: #bennet
-        return 'https://www.youtube.com/watch?v=ulsLI029rH0&t=90s'
-    elif userId == 268380148456226816: #jacob
-        return ''
+def isDate(input: str) -> bool:
+    return 'Monday ' in input or 'Tuesday ' in input or 'Wednesday ' in input or 'Thursday ' in input or 'Friday ' in input or 'Saturday ' in input or 'Sunday ' in input
 
 bot.run(TOKEN)
