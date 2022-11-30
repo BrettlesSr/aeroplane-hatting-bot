@@ -136,7 +136,7 @@ async def schedule(ctx, name: str, command = "", group: Role = None):
     
     if command == "missing":
         #checks who is missing
-        schedule = getCurrentSchedule(name, ctx.channel)
+        schedule = await getCurrentSchedule(name, ctx.channel)
         if schedule == None:
             return
         missing = schedule.getMissingRespondents()
@@ -150,7 +150,7 @@ async def schedule(ctx, name: str, command = "", group: Role = None):
         
     elif command == "extend":
         #adds another week of dates to the schedule
-        schedule = getCurrentSchedule(name, ctx.channel)
+        schedule = await getCurrentSchedule(name, ctx.channel)
         if schedule == None:
             return
         newDates = []
@@ -172,7 +172,7 @@ async def schedule(ctx, name: str, command = "", group: Role = None):
         
         await ctx.send("Event {}: Starting up new event. Dates in the next three weeks are listed below. React with :white_check_mark: if you can make a date and :negative_squared_cross_mark: if you are unavailable. You can alter your choices later."
         .format(name))
-        schedule = getCurrentSchedule(name, ctx.channel)
+        schedule = await getCurrentSchedule(name, ctx.channel)
         if schedule == None:
             return
         await printNewDates(name, schedule.dates, ctx, schedule)
@@ -201,7 +201,7 @@ async def on_raw_reaction_add(data):
     if message.author != bot.user:
         return
     name = next(iter(message.content.split(":"))).replace("Event ", "")
-    schedule = getCurrentSchedule(name, channel)
+    schedule = await getCurrentSchedule(name, channel)
     if schedule == None:
         return
     date = next(x for x in schedule.dates if x.msg == message.content)
@@ -222,7 +222,7 @@ async def on_raw_reaction_remove(data):
     if message.author != bot.user:
         return
     name = next(iter(message.content.split(":"))).replace("Event ", "")
-    schedule = getCurrentSchedule(name, channel)
+    schedule = await getCurrentSchedule(name, channel)
     if schedule == None:
         return
     date = next(x for x in schedule.dates if x.msg == message.content)
