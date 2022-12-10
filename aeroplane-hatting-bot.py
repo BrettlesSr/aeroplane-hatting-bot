@@ -193,10 +193,22 @@ async def schedule(ctx, name: str, command = "", group: Role = None):
         newDates = []
         for newDate in range(0, schedule.daysHorizon):
             date = schedule.now + datetime.timedelta(days=newDate + 1)
-            msg = "Event {}: {}".format(name, date.strftime(dateFormat))
-            newScheduleDate = ScheduleDate(date, schedule.members, msg, name, None)
-            newDates.append(newScheduleDate)
-            schedule.dates.append(newScheduleDate)
+            dateString = date.strftime(dateFormat)
+                if dateString.startswith('Saturday') or dateString.startswith('Sunday'):
+                    msg = "Event {}: {}".format(name, dateString + ' (Afternoon)')
+                    newScheduleDate = ScheduleDate(date, schedule.members, msg, name, None)
+                    newDates.append(newScheduleDate)
+                    schedule.dates.append(newScheduleDate)
+                    msg = "Event {}: {}".format(name, dateString + ' (Evening)')
+                    newScheduleDate = ScheduleDate(date, schedule.members, msg, name, None)
+                    newDates.append(newScheduleDate)
+                    schedule.dates.append(newScheduleDate)
+                else:
+                    msg = "Event {}: {}".format(name, dateString)
+                    newScheduleDate = ScheduleDate(date, schedule.members, msg, name, None)
+                    newDates.append(newScheduleDate)
+                    schedule.dates.append(newScheduleDate)
+            
         await printNewDates(name, newDates, ctx, group)
 
 async def getCurrentSchedule(name, channel, group) -> ScheduleTask:
