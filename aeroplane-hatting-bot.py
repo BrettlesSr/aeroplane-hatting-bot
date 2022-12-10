@@ -215,47 +215,47 @@ async def printNewDates(name, newDates, ctx, group):
         for emoji in emojis:
             await msg.add_reaction(emoji)
 
-@bot.event
-async def on_raw_reaction_add(data):
-    if data == None or data.member == None or data.member.bot:
-        return
-    channel = await bot.fetch_channel(data.channel_id)
-    message = await channel.fetch_message(data.message_id)
-    if message.author != bot.user:
-        return
-    name = next(iter(message.content.split(":"))).replace("Event ", "")
-    schedule = await getCurrentSchedule(name, channel, None)
-    if schedule == None:
-        return
-    date = next(x for x in schedule.dates if x.msg == message.content)
-    if data.member.mention in date.expectedRespondents:
-        if str(data.emoji) == '✅' or str(data.emoji) == '❎':
-            date.respondents.add(data.member.mention)
-            if str(data.emoji) == '✅':
-                date.approvingRespondents.add(data.member.mention)
-    await checkIfCompleted(schedule, channel)
+# @bot.event
+# async def on_raw_reaction_add(data):
+#     if data == None or data.member == None or data.member.bot:
+#         return
+#     channel = await bot.fetch_channel(data.channel_id)
+#     message = await channel.fetch_message(data.message_id)
+#     if message.author != bot.user:
+#         return
+#     name = next(iter(message.content.split(":"))).replace("Event ", "")
+#     schedule = await getCurrentSchedule(name, channel, None)
+#     if schedule == None:
+#         return
+#     date = next(x for x in schedule.dates if x.msg == message.content)
+#     if data.member.mention in date.expectedRespondents:
+#         if str(data.emoji) == '✅' or str(data.emoji) == '❎':
+#             date.respondents.add(data.member.mention)
+#             if str(data.emoji) == '✅':
+#                 date.approvingRespondents.add(data.member.mention)
+#     await checkIfCompleted(schedule, channel)
 
-@bot.event
-async def on_raw_reaction_remove(data):
-    user = await bot.fetch_user(data.user_id)
-    if data == None or user == None or user.bot:
-        return
-    channel = await bot.fetch_channel(data.channel_id)
-    message = await channel.fetch_message(data.message_id)
-    if message.author != bot.user:
-        return
-    name = next(iter(message.content.split(":"))).replace("Event ", "")
-    schedule = await getCurrentSchedule(name, channel, None)
-    if schedule == None:
-        return
-    date = next(x for x in schedule.dates if x.msg == message.content)
+# @bot.event
+# async def on_raw_reaction_remove(data):
+#     user = await bot.fetch_user(data.user_id)
+#     if data == None or user == None or user.bot:
+#         return
+#     channel = await bot.fetch_channel(data.channel_id)
+#     message = await channel.fetch_message(data.message_id)
+#     if message.author != bot.user:
+#         return
+#     name = next(iter(message.content.split(":"))).replace("Event ", "")
+#     schedule = await getCurrentSchedule(name, channel, None)
+#     if schedule == None:
+#         return
+#     date = next(x for x in schedule.dates if x.msg == message.content)
     
-    if user.mention in date.expectedRespondents:
-        if str(data.emoji) == '✅' or str(data.emoji) == '❎':
-            date.respondents.remove(user.mention)
-            if str(data.emoji) == '✅':
-                date.approvingRespondents.remove(user.mention)
-    await checkIfCompleted(schedule, channel)
+#     if user.mention in date.expectedRespondents:
+#         if str(data.emoji) == '✅' or str(data.emoji) == '❎':
+#             date.respondents.remove(user.mention)
+#             if str(data.emoji) == '✅':
+#                 date.approvingRespondents.remove(user.mention)
+#     await checkIfCompleted(schedule, channel)
     
 async def checkIfCompleted(schedule: ScheduleTask, channel):
     missing = await schedule.getMissingRespondents()
