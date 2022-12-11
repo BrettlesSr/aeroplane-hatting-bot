@@ -211,6 +211,14 @@ async def schedule(ctx, name: str, command = "", group: Role = None):
             
         await printNewDates(name, newDates, ctx, group)
 
+    # elif command == "blame":
+    #     schedule = await getCurrentSchedule(name, ctx.channel, group)
+    #     if schedule == None:
+    #         return
+        
+    #     schedule.getMissingRespondents()
+    #     for date in schedule.dates
+
 async def getCurrentSchedule(name, channel, group) -> ScheduleTask:
     messages = []
     async for message in channel.history(limit=200):
